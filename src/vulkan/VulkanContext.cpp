@@ -181,11 +181,17 @@ void VulkanContext::selectPhysicalDevice()
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
         std::vector<VkExtensionProperties> extensions(extensionCount);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
-        bool hasSwapchain = false;
+        bool hasSwapchain = false, hasMemory = false, hasMemoryWin32 = false;
+        bool hasSemaphore = false, hasSemaphoreWin32 = false;
         for (const auto& extension : extensions)
-            if (std::strcmp(extension.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
-                hasSwapchain = true;
-        if (!hasSwapchain) continue;
+        {
+            hasSwapchain |= std::strcmp(extension.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0;
+            hasMemory |= std::strcmp(extension.extensionName, VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME) == 0;
+            hasMemoryWin32 |= std::strcmp(extension.extensionName, VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME) == 0;
+            hasSemaphore |= std::strcmp(extension.extensionName, VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME) == 0;
+            hasSemaphoreWin32 |= std::strcmp(extension.extensionName, VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME) == 0;
+        }
+        if (!(hasSwapchain && hasMemory && hasMemoryWin32 && hasSemaphore && hasSemaphoreWin32)) continue;
 
         VkSurfaceCapabilitiesKHR capabilities{};
         if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &capabilities) != VK_SUCCESS ||
@@ -215,11 +221,16 @@ void VulkanContext::createDevice()
                                       .queueFamilyIndex = m_graphicsQueueFamily,
                                       .queueCount = 1,
                                       .pQueuePriorities = &priority};
-    constexpr const char* extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    constexpr const char* extensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME};
     VkDeviceCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                                   .queueCreateInfoCount = 1,
                                   .pQueueCreateInfos = &queueInfo,
-                                  .enabledExtensionCount = 1,
+                                  .enabledExtensionCount = static_cast<uint32_t>(std::size(extensions)),
                                   .ppEnabledExtensionNames = extensions};
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
         throw std::runtime_error("vkCreateDevice failed");

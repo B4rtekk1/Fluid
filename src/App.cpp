@@ -20,7 +20,7 @@ App::App()
 
         m_vulkanContext = std::make_unique<VulkanContext>(m_window);
         m_cudaContext = std::make_unique<CudaContext>(m_vulkanContext->physicalDevice());
-        m_renderer = std::make_unique<Renderer>(*m_vulkanContext, m_window);
+        m_renderer = std::make_unique<Renderer>(*m_vulkanContext, *m_cudaContext, m_window);
         std::cout << "SDL + Vulkan + CUDA ready. Close the window or press Escape.\n";
     } catch (...) {
         m_renderer.reset();
@@ -58,8 +58,7 @@ void App::run(unsigned int maxFrames)
         if (!running) break;
 
         const float seconds = std::chrono::duration<float>(Clock::now() - start).count();
-        const float4 color = m_cudaContext->testColor(seconds);
-        m_renderer->render(color.x, color.y, color.z);
+        m_renderer->render(seconds);
         if (maxFrames && ++frames >= maxFrames) running = false;
     }
 }

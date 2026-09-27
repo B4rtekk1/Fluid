@@ -28,7 +28,10 @@ add_executable(Fluid
     src/vulkan/Renderer.cpp
     src/cuda/CudaContext.cpp
     src/cuda/Simulation.cu
+    src/interop/SharedBuffer.cpp
+    src/interop/InteropSemaphore.cpp
 )
+target_compile_definitions(Fluid PRIVATE VK_USE_PLATFORM_WIN32_KHR NOMINMAX)
 target_include_directories(Fluid PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(Fluid PRIVATE Vulkan::Vulkan SDL3::SDL3 CUDA::cudart_static)
 

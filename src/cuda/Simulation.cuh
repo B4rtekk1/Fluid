@@ -11,4 +11,5 @@ void launchIntegrate(
     cudaStream_t stream
 );
 
-void launchTestColor(float4* color, float seconds, cudaStream_t stream);
+void launchTestColor(uint32_t* pixels, uint32_t width, uint32_t height,
+                     bool bgra, float seconds, cudaStream_t stream);

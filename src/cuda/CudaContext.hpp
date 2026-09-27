@@ -24,7 +24,8 @@ public:
         return m_deviceIndex;
     }
 
-    float4 testColor(float seconds);
+    void writeTestColor(void* pixels, uint32_t width, uint32_t height,
+                        bool bgra, cudaExternalSemaphore_t ready, float seconds);
 
 private:
     int findMatchingDevice(
@@ -35,5 +36,4 @@ private:
     int m_deviceIndex = -1;
 
     cudaStream_t m_stream = nullptr;
-    float4* m_deviceColor = nullptr;
 };

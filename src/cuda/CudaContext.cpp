@@ -99,21 +99,10 @@ CudaContext::CudaContext(
         );
     }
 
-    result = cudaMalloc(&m_deviceColor, sizeof(float4));
-    if (result != cudaSuccess)
-    {
-        cudaStreamDestroy(m_stream);
-        m_stream = nullptr;
-        throw std::runtime_error(
-            std::string("cudaMalloc failed: ") +
-            cudaGetErrorString(result)
-        );
-    }
 }
 
 CudaContext::~CudaContext()
 {
-    if (m_deviceColor) cudaFree(m_deviceColor);
     if (m_stream)
     {
         cudaStreamDestroy(m_stream);
@@ -183,17 +172,15 @@ int CudaContext::findMatchingDevice(
     return -1;
 }
 
-float4 CudaContext::testColor(float seconds)
+void CudaContext::writeTestColor(void* pixels, uint32_t width, uint32_t height,
+                                 bool bgra, cudaExternalSemaphore_t ready, float seconds)
 {
-    launchTestColor(m_deviceColor, seconds, m_stream);
+    launchTestColor(static_cast<uint32_t*>(pixels), width, height, bgra, seconds, m_stream);
     cudaError_t status = cudaGetLastError();
     if (status != cudaSuccess)
         throw std::runtime_error(std::string("CUDA kernel: ") + cudaGetErrorString(status));
-
-    float4 color{};
-    status = cudaMemcpyAsync(&color, m_deviceColor, sizeof(color), cudaMemcpyDeviceToHost, m_stream);
-    if (status == cudaSuccess) status = cudaStreamSynchronize(m_stream);
+    cudaExternalSemaphoreSignalParams params{};
+    status = cudaSignalExternalSemaphoresAsync(&ready, &params, 1, m_stream);
     if (status != cudaSuccess)
-        throw std::runtime_error(std::string("CUDA color readback: ") + cudaGetErrorString(status));
-    return color;
+        throw std::runtime_error(std::string("CUDA semaphore signal: ") + cudaGetErrorString(status));
 }
