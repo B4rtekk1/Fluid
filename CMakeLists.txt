@@ -30,7 +30,7 @@ add_executable(Fluid
     src/cuda/Simulation.cu
 )
 target_include_directories(Fluid PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(Fluid PRIVATE Vulkan::Vulkan SDL3::SDL3 CUDA::cudart)
+target_link_libraries(Fluid PRIVATE Vulkan::Vulkan SDL3::SDL3 CUDA::cudart_static)
 
 set_target_properties(Fluid PROPERTIES
     CUDA_ARCHITECTURES 86

@@ -3,43 +3,111 @@
 
 #include <cstring>
 #include <stdexcept>
+#include <string>
+
+namespace
+{
+    void checkCudaAvailable()
+    {
+        int deviceCount = 0;
+
+        const cudaError_t result =
+            cudaGetDeviceCount(&deviceCount);
+
+        if (result == cudaErrorNoDevice)
+        {
+            throw std::runtime_error(
+                "CUDA is not available: "
+                "no CUDA-capable NVIDIA GPU was detected."
+            );
+        }
+
+        if (result == cudaErrorInsufficientDriver)
+        {
+            throw std::runtime_error(
+                "CUDA is not available: "
+                "the NVIDIA driver is missing or too old."
+            );
+        }
+
+        if (result == cudaErrorInitializationError)
+        {
+            throw std::runtime_error(
+                "CUDA initialization failed."
+            );
+        }
+
+        if (result != cudaSuccess)
+        {
+            throw std::runtime_error(
+                std::string(
+                    "CUDA initialization failed: "
+                ) +
+                cudaGetErrorString(result)
+            );
+        }
+
+        if (deviceCount == 0)
+        {
+            throw std::runtime_error(
+                "CUDA is not available: "
+                "no CUDA-capable GPU was detected."
+            );
+        }
+    }
+}
 
 CudaContext::CudaContext(
     VkPhysicalDevice physicalDevice)
 {
+    checkCudaAvailable();
+
     m_deviceIndex =
         findMatchingDevice(physicalDevice);
 
     if (m_deviceIndex < 0)
     {
         throw std::runtime_error(
-            "Couldn't match CUDA GPU with Vulkan GPU"
+            "CUDA is available, but the Vulkan GPU "
+            "does not match any CUDA device."
         );
     }
 
-    if (cudaSetDevice(
-            m_deviceIndex) != cudaSuccess)
+    cudaError_t result =
+        cudaSetDevice(m_deviceIndex);
+
+    if (result != cudaSuccess)
     {
         throw std::runtime_error(
-            "cudaSetDevice failed"
+            std::string("cudaSetDevice failed: ") +
+            cudaGetErrorString(result)
         );
     }
 
-    if (cudaStreamCreateWithFlags(
-            &m_stream,
-            cudaStreamNonBlocking) != cudaSuccess)
+    result = cudaStreamCreateWithFlags(
+        &m_stream,
+        cudaStreamNonBlocking
+    );
+
+    if (result != cudaSuccess)
     {
         throw std::runtime_error(
-            "cudaStreamCreate failed"
+            std::string(
+                "cudaStreamCreateWithFlags failed: "
+            ) +
+            cudaGetErrorString(result)
         );
     }
 
-    const cudaError_t allocation = cudaMalloc(&m_deviceColor, sizeof(float4));
-    if (allocation != cudaSuccess)
+    result = cudaMalloc(&m_deviceColor, sizeof(float4));
+    if (result != cudaSuccess)
     {
         cudaStreamDestroy(m_stream);
         m_stream = nullptr;
-        throw std::runtime_error(std::string("cudaMalloc: ") + cudaGetErrorString(allocation));
+        throw std::runtime_error(
+            std::string("cudaMalloc failed: ") +
+            cudaGetErrorString(result)
+        );
     }
 }
 
@@ -75,9 +143,18 @@ int CudaContext::findMatchingDevice(
 
     int cudaDeviceCount = 0;
 
-    cudaGetDeviceCount(
-        &cudaDeviceCount
-    );
+    const cudaError_t countResult =
+        cudaGetDeviceCount(&cudaDeviceCount);
+
+    if (countResult != cudaSuccess)
+    {
+        throw std::runtime_error(
+            std::string(
+                "cudaGetDeviceCount failed: "
+            ) +
+            cudaGetErrorString(countResult)
+        );
+    }
 
     for (int i = 0;
          i < cudaDeviceCount;
@@ -85,10 +162,14 @@ int CudaContext::findMatchingDevice(
     {
         cudaDeviceProp cudaProperties{};
 
-        cudaGetDeviceProperties(
+        const cudaError_t result =
+            cudaGetDeviceProperties(
             &cudaProperties,
             i
         );
+
+        if (result != cudaSuccess)
+            continue;
 
         if (std::memcmp(
                 cudaProperties.uuid.bytes,
